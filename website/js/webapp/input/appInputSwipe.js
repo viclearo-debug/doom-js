@@ -1,9 +1,10 @@
 /**
  * Swipe gestures on a touch screen: left, right, up, down, recognised while the finger slides, as soon as it has
- * travelled a fraction of the element's height, without waiting for it to lift.
+ * travelled a fraction of the element's height from where it touched, without waiting for it to lift.
  *
- * One long slide in one direction is one gesture; the same finger makes a new gesture only when it changes direction
- * (axis or sign), counted from the point where the previous one was recognised. Each finger is followed on its own.
+ * One gesture per touch, along the larger component of the travel (a slightly crooked upward slide is only up, never
+ * a diagonal): once recognised, the finger makes no other gesture until it lifts (a thumb's arc at the end of a slide
+ * would otherwise add a sideways one). Each finger is followed on its own.
  * The listeners are passive and never call preventDefault (a virtual pad on top keeps its own); attach() sets
  * touch-action: none on the element so the browser does not scroll or zoom under the gestures, detach() gives the
  * previous value back. The gestures wait in a short queue, read by poll().
@@ -15,7 +16,7 @@ class AppInputSwipe {
     constructor(element) {
         this._element     = element;
         this._threshold   = AppInputSwipe.DEFAULT_THRESHOLD;
-        this._fingers     = new Map();   // touch identifier -> {x, y, last}
+        this._fingers     = new Map();   // touch identifier -> {x, y, done}: where it touched, its gesture made
         this._queue       = [];
         this._touchAction = null;
         this._attached    = false;
@@ -83,7 +84,7 @@ class AppInputSwipe {
 
     _start(event) {
         for (const touch of event.changedTouches) {
-            this._fingers.set(touch.identifier, {x: touch.clientX, y: touch.clientY, last: null});
+            this._fingers.set(touch.identifier, {x: touch.clientX, y: touch.clientY, done: false});
         }
     }
 
@@ -91,7 +92,7 @@ class AppInputSwipe {
         const travel = (this._threshold * this._element.getBoundingClientRect().height);
         for (const touch of event.changedTouches) {
             const finger = this._fingers.get(touch.identifier);
-            if (finger === undefined) {
+            if ((finger === undefined) || finger.done) {
                 continue;
             }
             const dx = (touch.clientX - finger.x);
@@ -100,12 +101,7 @@ class AppInputSwipe {
                 continue;
             }
             const direction = ((Math.abs(dx) >= Math.abs(dy)) ? ((dx < 0) ? AppInputSwipe.LEFT : AppInputSwipe.RIGHT) : ((dy < 0) ? AppInputSwipe.UP : AppInputSwipe.DOWN));
-            finger.x = touch.clientX;
-            finger.y = touch.clientY;
-            if (direction === finger.last) {
-                continue;
-            }
-            finger.last = direction;
+            finger.done = true;
             if (this._queue.length < AppInputSwipe.QUEUE_SIZE) {
                 this._queue.push(direction);
             }
