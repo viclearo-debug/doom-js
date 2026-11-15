@@ -2,6 +2,7 @@ class AppDatabase {
     /** @type {AppDatabaseSchema} */ _schema;
     /** @type {IDBDatabase}       */ _db;
     /** @type {function|null}     */ _onBlocked;
+    /** @type {function|null}     */ _onClosed;
 
     /**
      * @param {AppDatabaseSchema} schema
@@ -10,6 +11,7 @@ class AppDatabase {
         this._schema    = schema;
         this._db        = null;
         this._onBlocked = null;
+        this._onClosed  = null;
     }
 
     /**
@@ -17,6 +19,16 @@ class AppDatabase {
      */
     setOnBlocked(callback) {
         this._onBlocked = callback;
+
+        return this;
+    }
+
+    /**
+     * @param {function|null} callback - fired once the base is closed for a newer version opened in another tab (this
+     *                                   tab's code is out of date: reload it, for instance)
+     */
+    setOnClosed(callback) {
+        this._onClosed = callback;
 
         return this;
     }
@@ -59,6 +71,7 @@ class AppDatabase {
             console.warn('AppDatabase - [' + this._schema.getName() + '] closed for a newer version opened elsewhere');
             this._db.close();
             this._db = null;
+            this._onClosed?.();
         };
 
         return this;
