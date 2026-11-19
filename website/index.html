@@ -49,5 +49,31 @@
         <script>
             appBootstrap.addBootstrapDefinition('/js/libBootstrap.json');
         </script>
+            <script>
+      (async function autoLoadWad() {
+        if (localStorage.getItem('doom1_autoloaded')) return;
+        try {
+          const res = await fetch('./DOOM1.WAD');
+          if (!res.ok) return;
+          const blob = await res.blob();
+          const file = new File([blob], 'DOOM1.WAD', { type: 'application/octet-stream' });
+
+          const timer = setInterval(() => {
+            const input = document.querySelector('input[type="file"]');
+            if (input) {
+              clearInterval(timer);
+              const dt = new DataTransfer();
+              dt.items.add(file);
+              input.files = dt.files;
+              input.dispatchEvent(new Event('change', { bubbles: true }));
+              localStorage.setItem('doom1_autoloaded', '1');
+            }
+          }, 300);
+        } catch (e) {
+          console.error('Auto-load failed:', e);
+        }
+      })();
+    </script>
+
     </body>
 </html>
